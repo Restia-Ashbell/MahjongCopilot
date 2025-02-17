@@ -82,7 +82,7 @@ config:
                         action_proto_obj = getattr(
                             pb, item['name']).FromString(b64)
                         action_dict_obj = MessageToDict(
-                            action_proto_obj, preserving_proto_field_name=True, including_default_value_fields=True)
+                            action_proto_obj, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
                         if item['name'] == 'ActionNewRound':
                             # 这里也是假md5，理由同上
                             action_dict_obj['md5'] = action_dict_obj['sha256'][:32]

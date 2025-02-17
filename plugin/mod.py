@@ -302,7 +302,7 @@ mod: {}
                         data = liqi_pb2.ReqSaveCommonViews()
                         data.ParseFromString(msg_block.data)
                         views = json_format.MessageToDict(
-                            data, including_default_value_fields=True, preserving_proto_field_name=True)
+                            data, always_print_fields_with_no_presence=True, preserving_proto_field_name=True)
                         self.settings['config']['views'][views['save_index']
                                                          ] = views['views']
                         if views['is_use'] == 1:

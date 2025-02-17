@@ -1,8 +1,8 @@
-mitmproxy==10.2.4
-playwright==1.42.0
-torch==2.2.1
+mitmproxy
+playwright
+torch
 requests
-numpy<2
+numpy
 pillow
 --find-links https://github.com/shinkuan/Akagi/releases/expanded_assets/v0.1.1-libriichi
 riichi>=0.1.1
@@ -11,4 +11,4 @@ pyinstaller
 aliyun-log-python-sdk
 ruamel.yaml
 loguru
-protobuf==3.20.1
+protobuf>=5.26.0

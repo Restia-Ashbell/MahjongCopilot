@@ -37,13 +37,13 @@ class LiqiProto:
             liqi_pb2_notify = getattr(liqi_pb2, message_name)
             proto_obj = liqi_pb2_notify.FromString(msg_block.data)
             dict_obj = MessageToDict(
-                proto_obj, preserving_proto_field_name=True, including_default_value_fields=True)
+                proto_obj, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
             if 'data' in dict_obj:
                 B = base64.b64decode(dict_obj['data'])
                 action_proto_obj = getattr(
                     liqi_pb2, dict_obj['name']).FromString(decode(B))
                 action_dict_obj = MessageToDict(
-                    action_proto_obj, preserving_proto_field_name=True, including_default_value_fields=True)
+                    action_proto_obj, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
                 dict_obj['data'] = action_dict_obj
             msg_id = self.tot
         else:
@@ -59,7 +59,7 @@ class LiqiProto:
                 liqi_pb2_req = getattr(liqi_pb2, proto_domain['requestType'])
                 proto_obj = liqi_pb2_req.FromString(msg_block.data)
                 dict_obj = MessageToDict(
-                    proto_obj, preserving_proto_field_name=True, including_default_value_fields=True)
+                    proto_obj, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
                 self.res_type[msg_id] = (method_name, getattr(
                     liqi_pb2, proto_domain['responseType']))  # wait response
             elif msg_type == MsgType.Res:
@@ -68,7 +68,7 @@ class LiqiProto:
                 method_name, liqi_pb2_res = self.res_type.pop(msg_id)
                 proto_obj = liqi_pb2_res.FromString(msg_block.data)
                 dict_obj = MessageToDict(
-                    proto_obj, preserving_proto_field_name=True, including_default_value_fields=True)
+                    proto_obj, preserving_proto_field_name=True, always_print_fields_with_no_presence=True)
         result = {'id': msg_id, 'type': msg_type,
                   'method': method_name, 'data': dict_obj}
         self.tot += 1
