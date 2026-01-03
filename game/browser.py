@@ -83,13 +83,7 @@ class GameBrowser:
             proxy_object = None
         
         browser_args=[
-            '--no-sandbox',
-            '--noerrdialogs',            
-            '--disable-session-crashed-bubble',
-            '--disable-infobars',
-            '--no-default-browser-check',
-            '--no-first-run',
-            '--enable-features=NetworkService,NetworkServiceInProcess'            
+            f"--app={url}",
         ]
         
         # read all subfolder names from Folder.CRX and form extension list
@@ -104,8 +98,8 @@ class GameBrowser:
         LOGGER.info('Starting Chromium, viewport=%dx%d, proxy=%s', self.width, self.height, proxy)
         with sync_playwright() as playwright:
             # Initilize browser
-            chromium = playwright.chromium
-            self.context = chromium.launch_persistent_context(
+            self.context = playwright.chromium.launch_persistent_context(
+                channel="msedge",
                 user_data_dir=utils.sub_folder(Folder.BROWSER_DATA),
                 headless=False,
                 viewport={'width': self.width, 'height': self.height},
@@ -117,7 +111,7 @@ class GameBrowser:
 
             try:
                 self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
-                self.page.goto(url)
+                # self.page.goto(url)
             except Exception as e:
                 LOGGER.error('Error opening page. Check if certificate is installed. \n%s',e)
 
