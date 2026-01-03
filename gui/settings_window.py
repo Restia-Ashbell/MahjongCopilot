@@ -16,8 +16,6 @@ class SettingsWindow(tk.Toplevel):
         super().__init__(parent)
         self.st = setting
 
-        self.geometry('800x800')
-        self.minsize(800,800)
         # self.resizable(False, False)
         # set position: within main window
         parent_x = parent.winfo_x()
@@ -40,11 +38,11 @@ class SettingsWindow(tk.Toplevel):
         self.title(self.st.lan().SETTINGS)
         # Main frame
         main_frame = ttk.Frame(self, padding="20")
-        main_frame.pack(expand=True, fill="both")        
+        main_frame.pack(expand=True, fill="both")
         
         pad_args = {"padx":(3, 3), "pady":(3, 2)}
-        args_label = {"sticky":"e", **pad_args}
-        args_entry = {"sticky":"w", **pad_args}
+        args_label = {"sticky":"ew", **pad_args}
+        args_entry = {"sticky":"ew", **pad_args}
         std_wid = 15
         # auto launch browser
         cur_row = 0
