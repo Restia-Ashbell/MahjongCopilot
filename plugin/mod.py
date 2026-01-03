@@ -159,7 +159,7 @@ mod: {}
         # 获取资源文件版本
         new_version = get_version()
 
-        prefix = self.get_prefix(new_version['version'])
+        prefix = self.get_prefix(new_version)
 
         # 校验版本是否相同
         if self.settings['resource']['lqc_lqbin_version'] == prefix:
@@ -361,7 +361,7 @@ mod: {}
                             character.rewarded_level.extend([1, 2, 3, 4, 5])
                             if c not in character_keys:
                                 self.settings['config']['characters'][c] = int(
-                                    '40'+str(c)[4:6]+'01')
+                                    '40'+str(c)[4:]+'01')
                             character.skin = self.settings['config']['characters'][c]
                             if self.settings['config']['emoji']:
                                 character.extra_emoji.extend(
@@ -395,7 +395,7 @@ mod: {}
                                 'characters'][self.settings['config']['character']]
                         else:
                             data.account.avatar_id = int(
-                                '40'+str(self.settings['config']['character'])[4:6]+'01')
+                                '40'+str(self.settings['config']['character'])[4:]+'01')
                         for view in self.settings['config']['views'][self.settings['config']['views_index']]:
                             if view['slot'] == 5:
                                 data.account.avatar_frame = view['item_id']
@@ -607,7 +607,7 @@ mod: {}
                             character.rewarded_level.extend([1, 2, 3, 4, 5])
                             if c not in character_keys:
                                 self.settings['config']['characters'][c] = int(
-                                    '40'+str(c)[4:6]+'01')
+                                    '40'+str(c)[4:]+'01')
                             character.skin = self.settings['config']['characters'][c]
                             if self.settings['config']['emoji']:
                                 character.extra_emoji.extend(

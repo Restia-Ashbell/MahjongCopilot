@@ -4,7 +4,7 @@ from loguru import logger
 
 def get_version():
     req = requests.get('https://game.maj-soul.com/1/version.json', timeout=10)
-    return req.json()
+    return req.json()['version']
 
 
 def get_prefix(version):
@@ -14,7 +14,7 @@ def get_prefix(version):
 
 def update(version):
     new_version = get_version()
-    prefix = get_prefix(new_version['version'])
+    prefix = get_prefix(new_version)
     if prefix == version:
         logger.success(f'liqi文件无需更新，当前版本：{prefix}')
         return version
@@ -29,7 +29,7 @@ def update(version):
     3. 等待1个小时后再试''')
             return version
         liqi = req.json()
-        if liqi['tag_name'] != prefix :
+        if new_version not in liqi['tag_name']:
             logger.error('liqi文件需要更新，但AutoLiqi项目还未更新，晚点再来试试吧！')
             logger.error('详细信息请看 https://github.com/Avenshy/AutoLiqi')
             return version
