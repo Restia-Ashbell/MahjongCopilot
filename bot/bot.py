@@ -29,7 +29,6 @@ class Bot(ABC):
         self.seat: int = None
         self.mode = None
         self.ignore_next_turn_self_reach: bool = False
-        self.reach_dahai: dict = None
         self.model_type:str = None
 
     @property
@@ -92,16 +91,11 @@ class Bot(ABC):
         get the reach_dahai message
         Only call this method when it is reachable.
         """
-        self.generate_reach_dahai()
-        return self.reach_dahai
-
-
-    def generate_reach_dahai(self):
         reach_msg = {'type': MjaiType.REACH, 'actor': self.seat}
-        reach_dahai_from_originalbot = self.react(reach_msg)
-        self.reach_dahai = reach_dahai_from_originalbot
-        LOGGER.debug(f"Generated and saved reach_dahai: {self.reach_dahai}")
+        reach_dahai = self.react(reach_msg)
+        LOGGER.debug(f"Generated and saved reach_dahai: {reach_dahai}")
         self.ignore_next_turn_self_reach = True
+        return reach_dahai
 
 
 class BotMjai(Bot):
@@ -137,11 +131,10 @@ class BotMjai(Bot):
             raise BotNotSupportingMode(mode)
 
     def react(self, input_msg: dict) -> dict:
-        msg_type = input_msg['type']
         if self.mjai_bot is None:
             return None
         if self.ignore_next_turn_self_reach == True:
-            if msg_type == MjaiType.REACH and input_msg['actor'] == self.seat:
+            if input_msg['type'] == MjaiType.REACH and input_msg['actor'] == self.seat:
                 LOGGER.debug("Ignoring Reach msg, already fed reach msg to the bot.")
                 return None
             self.ignore_next_turn_self_reach = False

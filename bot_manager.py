@@ -448,8 +448,7 @@ class BotManager:
         # Update overlay guide given pending reaction
         reaction = self.get_pending_reaction()
         if reaction:
-            guide, options = mjai_reaction_2_guide(reaction, 3, self.st.lan())
-            self.browser.overlay_update_guidance(guide, self.st.lan().OPTIONS_TITLE, options)
+            self.browser.overlay_update_guidance(self.game_state, reaction['meta_options'])
         else:
             self.browser.overlay_clear_guidance()
 

@@ -9,8 +9,12 @@ from io import BytesIO
 from playwright._impl._errors import TargetClosedError
 from playwright.sync_api import sync_playwright, BrowserContext, Page
 from common import utils
+from common.mj_helper import MSType, MjaiType
 from common.utils import Folder, FPSCounter, list_children, sub_folder
 from common.log_helper import LOGGER
+
+from .game_state import GameState
+from .constants import Positions, ACTION_PIORITY, cvt_type_mjai_2_ms
 
 class GameBrowser:
     """ Wrapper for Playwright browser controlling maj-soul operations
@@ -273,15 +277,15 @@ class GameBrowser:
         self._action_queue.put(self._action_stop_overlay)
         
 
-    def overlay_update_guidance(self, guide_str:str, option_subtitle:str, options:list):
+    def overlay_update_guidance(self, game_state:GameState, options:list):
         """ Queue action: update text area
         params:
             guide_str(str): AI guide str (recommendation action)
             option_subtitle(str): subtitle for options (display before option list)
             options(list): list of (str, float), indicating action/tile with its probability """
-        if self._last_guide == (guide_str, option_subtitle, options):  # skip if same guide
+        if self._last_guide == options:  # skip if same guide
             return
-        self._action_queue.put(lambda: self._action_overlay_update_guide(guide_str, option_subtitle, options))
+        self._action_queue.put(lambda: self._action_overlay_update_guide(game_state, options))
         
 
     def overlay_clear_guidance(self):
@@ -407,82 +411,116 @@ class GameBrowser:
         box_top = int(self.height * 0.44)  # Distance from the top
         box_left = int(self.width * 0.14)  # Distance from the left
         return (font_size, line_space, min_box_width, initial_box_height, box_top, box_left)
-    
 
-    def _action_overlay_update_guide(self, line1: str, option_title: str, options: list[tuple[str, float]]):
-        if not self.is_overlay_working():
+
+    def _action_overlay_update_guide(
+        self,
+        game_state: GameState,
+        options: list[tuple[str, float]],
+    ):
+        if not self.is_overlay_working() or not options:
             return
 
-        font_size, line_space, min_box_width, initial_box_height, box_top, box_left = self._overlay_text_params()
-        if options:
-            options_data = [[text, f"{perc*100:4.0f}%"] for text, perc in options]
-        else:
-            options_data = []
+        gi = game_state.get_game_info()
+        tile_data = []
+        for tile, prob in options:
+            if tile == gi.my_tsumohai:
+                idx = len(gi.my_tehai)
+                x, y = Positions.TEHAI_X[idx] + Positions.TRUMO_SPACE, Positions.TEHAI_Y
+            elif tile in gi.my_tehai:
+                idx = gi.my_tehai.index(tile)
+                x, y = Positions.TEHAI_X[idx], Positions.TEHAI_Y
+            else:
+                op_list = sorted(
+                    game_state.last_operation['operationList'] + [{'type': MSType.none}], 
+                    key=lambda x: ACTION_PIORITY[x['type']]
+                )
+                
+                mjai_type = tile
+                if 'chi' in mjai_type:
+                    mjai_type = MjaiType.CHI
+                mstype_from_mjai = cvt_type_mjai_2_ms(mjai_type, gi.my_tsumohai)
+
+                for idx, op in enumerate(op_list):
+                    if op['type'] == mstype_from_mjai or ('kan' in mjai_type and op['type'] in [MSType.ankan, MSType.daiminkan, MSType.kakan]):
+                        x, y = Positions.BUTTONS[idx]
+                        break
+
+            tile_data.append({
+                "x": x,
+                "y": y,
+                "tile": tile,
+                "prob": float(prob),
+            })
+
+        if not tile_data:
+            return
 
         js_code = f"""
         (() => {{
             const canvas = document.getElementById('{self._canvas_id}');
-            if (!canvas || !canvas.getContext) {{
-                return;
-            }}
+            if (!canvas || !canvas.getContext) return;
             const ctx = canvas.getContext('2d');
+            const scaler = canvas.width / 16.0;
 
-            // Measure the first line of text to determine box width
-            ctx.font = "{font_size * 2}px Arial";
-            const firstLineMetrics = ctx.measureText("{line1}");
-            let box_width = Math.max(firstLineMetrics.width + {font_size}*2, {min_box_width}); // set minimal width
-            let box_height = {initial_box_height}; // Pre-defined box height based on number of lines
-            
-            // Clear the drawing area
-            ctx.clearRect({box_left}, {box_top}, {self.width}-{box_left}, {initial_box_height});            
-            // Draw the semi-transparent background box
-            ctx.clearRect({box_left}, {box_top}, box_width, box_height);
-            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-            ctx.fillRect({box_left}, {box_top}, box_width, box_height);
+            // === 配置参数 ===
+            const tileHeight = canvas.height * 0.14;
+            const labelHeight = tileHeight * 0.27;
+            const labelPadding = labelHeight * 0.2;
+            const fontSize = Math.floor(labelHeight * 0.65);
 
-            // Reset font to draw the first line
-            ctx.fillStyle = "#FFFFFF";
-            ctx.textBaseline = "top";
-            ctx.fillText("{line1}", {box_left} + {font_size}, {box_top} + {line_space} * 2);
+            ctx.clearRect(canvas.width * 0.115, 0, canvas.width * (1 - 0.115), canvas.height);
 
-            // Adjust y-position for the subtitle and option lines
-            let yPos = {box_top} + {font_size * 2} + {line_space} * 4; // Position after the first line
-            ctx.font = "{font_size}px Arial"; // Font size for options subtitle and lines
-            
-            // Draw options subtitle
-            ctx.fillText("{option_title}", {box_left} + {font_size}*2, yPos);
-            yPos += {font_size} + {line_space}; // Adjust yPos for option lines
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "center";
+            ctx.font = fontSize + "px Arial";
 
-            // Draw each option line
-            const options = {options_data};
-            options.forEach(option => {{
-                const [text, perc] = option;
-                ctx.fillText(text, {box_left} + {font_size}*2, yPos); // Draw option text
-                // Calculate right-aligned percentage position and draw
-                const percWidth = ctx.measureText(perc).width;
-                ctx.fillText(perc, {box_left} + {font_size}*11, yPos);
-                yPos += {font_size} + {line_space}; // Adjust yPos for the next line
+            const data = {tile_data};
+            let maxProb = Math.max(...data.map(item => item.prob));
+
+            data.forEach(item => {{
+                const isBest = item.prob === maxProb;
+                const probPercent = Math.round(item.prob * 100);
+                if (probPercent === 0) return;
+
+                const tileX = item.x * scaler;
+                const tileY = item.y * scaler;
+
+                const labelText = probPercent + "%";
+                const textWidth = ctx.measureText(labelText).width;
+                const boxWidth = textWidth + labelPadding * 2;
+
+                const boxX = tileX - boxWidth / 2;
+                const boxY = tileY - tileHeight / 2 - labelHeight;
+
+                // 背景
+                ctx.fillStyle = isBest
+                    ? "rgba(255, 215, 0, 0.85)"
+                    : "rgba(0, 0, 0, 0.65)";
+                ctx.fillRect(boxX, boxY, boxWidth, labelHeight);
+
+                // 文字
+                ctx.fillStyle = isBest ? "#000000" : "#FFFFFF";
+                ctx.fillText(labelText, tileX, boxY + labelHeight / 2);
             }});
-        }})();"""
+        }})();
+        """
         self.page.evaluate(js_code)
-        self._last_guide = (line1, option_title, options)
+        self._last_guide = options
         
 
     def _action_overlay_clear_guide(self):
         """ delete text and the background box"""
         if self.is_overlay_working() is False:
             return
-        font_size, line_space, min_box_width, initial_box_height, box_top, box_left = self._overlay_text_params()
 
         js_code = f"""(() => {{
             const canvas = document.getElementById('{self._canvas_id}');
-            if (!canvas || !canvas.getContext) {{
-                return;
-            }}
+            if (!canvas || !canvas.getContext) return;
             const ctx = canvas.getContext('2d');
 
             // Clear the drawing area
-            ctx.clearRect({box_left}, {box_top}, {self.width}-{box_left}, {initial_box_height});
+            ctx.clearRect(canvas.width * 0.115, 0, canvas.width * (1 - 0.115), canvas.height);
         }});"""
         self.page.evaluate(js_code)
         self._last_guide = None
@@ -492,52 +530,43 @@ class GameBrowser:
         if self.is_overlay_working() is False:
             return
 
-        font_size = int(self.height/48)
-        box_top = 0.885
-        box_left = 0
-        box_width = 0.115
-        box_height = 1- box_top
-
         # Escape JavaScript special characters and convert newlines
-        js_text = text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') if text else ''
+        if not text:
+            return
+        js_text = text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
 
         js_code = f"""(() => {{
             // find canvas context
             const canvas = document.getElementById('{self._canvas_id}');
-            if (!canvas || !canvas.getContext) {{
-                return;
-            }}
+            if (!canvas || !canvas.getContext) return;
             const ctx = canvas.getContext('2d');  
             
             // clear box          
-            const box_left = canvas.width * {box_left};
-            const box_top = canvas.height * {box_top};
-            const box_width = canvas.width * {box_width};
-            const box_height = canvas.height * {box_height};
-            ctx.clearRect(box_left, box_top, box_width, box_height);
+            const clearWidth = canvas.width * 0.115;
+            const clearHeight = canvas.height * 0.115;
+            ctx.clearRect(0, canvas.height - clearHeight, clearWidth, clearHeight);
             
-            // transparent box background
-            ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-            ctx.fillRect(box_left, box_top, box_width, box_height);            
-            
-            // draw text
-            const text = "{js_text}"
-            if (!text) {{
-                return; // Skip drawing if text is empty
-            }}
-            
+            const fontSize = Math.floor(canvas.height / 48);
+            ctx.font = fontSize + "px Arial";
+            ctx.textBaseline = "alphabetic";
+            ctx.textAlign = "start";
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
             ctx.fillStyle = "#FFFFFF";
-            ctx.textBaseline = "top"
-            ctx.font = "{font_size}px Arial";
             
             // Split text into lines and draw each line
+            const text = "{js_text}";
             const lines = text.split('\\n');
-            const textX = {font_size} * 0.25
-            let startY = canvas.height * {box_top} + {font_size}*0.5;
-            const lineHeight = {font_size} * 1.2; // Adjust line height as needed
-            lines.forEach((line, index) => {{
-                ctx.fillText(line, canvas.width * {box_left} + textX, startY + (lineHeight * index));
-            }});            
+            const lineHeight = fontSize * 1.25;
+            const marginX = fontSize * 0.25;
+            const marginY = fontSize * 0.5;
+
+            // start from bottom
+            let y = canvas.height - marginY;
+            lines.reverse().forEach(line => {{
+                ctx.strokeText(line, marginX, y);
+                ctx.fillText(line, marginX, y);
+                y -= lineHeight;
+            }});          
         }})()"""
         self.page.evaluate(js_code)
         self._last_botleft_text = text
