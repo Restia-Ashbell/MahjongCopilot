@@ -34,9 +34,7 @@ class MainGUI(tk.Tk):
         icon = tk.PhotoImage(file=sub_file(Folder.RES,'icon.png'))
         self.iconphoto(True, icon)
         self.protocol("WM_DELETE_WINDOW", self._on_exit)        # confirmation before close window
-        size = (620,540)
-        self.geometry(f"{size[0]}x{size[1]}")
-        self.minsize(*size)
+        self.geometry("")
         # Styling
         scaling_factor = self.winfo_fpixels('1i') / 96
         GUI_STYLE.set_dpi_scaling(scaling_factor)
