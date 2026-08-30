@@ -131,10 +131,10 @@ class GameBrowser:
                 if self._check_page() is False:
                     break
                 try:
-                    action = self._action_queue.get_nowait()
+                    action = self._action_queue.get(True, timeout=0.05)
                     action()
                 except queue.Empty:
-                    time.sleep(0.002)
+                    pass
                 except Exception as e:
                     LOGGER.error('Error processing action: %s', e, exc_info=True)
 
@@ -399,7 +399,7 @@ class GameBrowser:
             }})()"""
         self.page.evaluate(js_code)
         self._canvas_id = None
-        self._botleft_text = None
+        self._last_botleft_text = None
         self._last_guide = None
         
 

@@ -14,12 +14,11 @@ def img_avg_diff(base_img:Image.Image, input_img:Image.Image, mask_img:Image.Ima
     input image will be resized to mask size, or size of base_img if mask N/A
     Params:
         base_img (Image): base image PIL format .
-        input_img (Image): image to compare to base, PIL format 
+        input_img (Image): image to compare to base, PIL format
         mask_img (Image): mask image (optional), only non-black area are compared.
     Return:
         float: average pixel difference (only unmasked area)
     """
-    # input_img = Image.open(input_file).convert('RGB')
     # resize input to mask or base img
     if mask_img:
         img_size = mask_img.size
@@ -27,48 +26,35 @@ def img_avg_diff(base_img:Image.Image, input_img:Image.Image, mask_img:Image.Ima
     else:
         img_size = base_img.size
     input_img = input_img.resize(img_size, Image.Resampling.LANCZOS)
-    
-    if mask_img:    # apply mask if there is
-        # Set all non-black pixels to white
-        modified_mask = mask_img.point(lambda p: 255 if p != 0 else 0)
-    
-        # Apply the modified mask
-        base_img.putalpha(modified_mask)
-        input_img.putalpha(modified_mask)
-        base_img = Image.composite(base_img, Image.new('RGB', base_img.size, 'white'), modified_mask)
-        input_img = Image.composite(input_img, Image.new('RGB', input_img.size, 'white'), modified_mask)
-    
-    # Compare the images (after applying the mask)
+
+    # ImageStat.Stat with a mask is a C-level, vectorised masked mean: it
+    # already ignores mask==0 pixels, so neither a "modified" mask nor the
+    # Image.composite() calls are needed on every invocation.
     diff = ImageChops.difference(base_img, input_img)
-    stat = ImageStat.Stat(diff, mask=modified_mask)  # Use modified mask to ignore black pixels
-    
-    # Calculate the average difference only for non-ignored pixels
-    non_ignored_pixels = sum(modified_mask.point(lambda p: p > 0 and 255).convert("L").point(bool).getdata())
-    # Correct calculation of average difference
-    if non_ignored_pixels:
-        avg_diff = sum(stat.mean) / len(stat.mean)
-    else:
-        avg_diff = 0    
-    return avg_diff
+    stat = ImageStat.Stat(diff, mask=mask_img)
+
+    if not stat.mean:   # mask entirely 0 -> nothing to compare
+        return 0.0
+    return sum(stat.mean) / len(stat.mean)
 
 
 class ImgTemp(Enum):
     """ game image templates"""
     MAIN_MENU = auto()
-    
+
 
 class GameVisual:
     """ image analysis for game screen"""
-    
+
     def __init__(self, browser:GameBrowser) -> None:
         self.browser = browser
         if not browser:
             raise ValueError("Browser is None")
-        
+
         self.temp_dict = {}
         """ image template dict {ImgTemp: (image_file, mask_file), ...}"""
         self._load_imgs()
-        
+
     def _load_imgs(self) -> None:
         """ load all template images"""
         files = [

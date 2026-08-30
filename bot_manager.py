@@ -263,10 +263,10 @@ class BotManager:
                 self.fps_counter.frame()
                 self._loop_pre_msg()
                 try:
-                    msg = self.mitm_server.get_message()
+                    msg = self.mitm_server.get_message(block=True, timeout=0.05)
                     self._process_msg(msg)
                 except queue.Empty:
-                    time.sleep(0.002)
+                    pass
                 except Exception as e:
                     LOGGER.error("Error processing msg: %s",e, exc_info=True)
                     self.game_exception = e

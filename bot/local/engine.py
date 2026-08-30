@@ -118,7 +118,7 @@ def get_engine(model_file:str) -> MortalEngine:
         device = device,
         enable_amp = False,
         enable_quick_eval = False,
-        enable_rule_based_agari_guard = False,
+        enable_rule_based_agari_guard = True,
         name = 'mortal',
         version = state['config']['control']['version'],
     )
