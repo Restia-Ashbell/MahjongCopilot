@@ -149,6 +149,7 @@ class MitmController:
                     listen_port=self.proxy_port,
                     confdir=str(self.mitm_config_folder),
                     mode=[f"upstream:{self.upstream_proxy}"],
+                    ssl_insecure=True,
                 )
                 up_log_str = f" (upstream_proxy={self.upstream_proxy})"
             else:
