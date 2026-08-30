@@ -419,7 +419,8 @@ class MainGUI(tk.Tk):
                 return info_str, self.icon_green
             else:   # game in progress
                 if gi and gi.bakaze:
-                    info_str +=  f"({gi.game_mode.value})"
+                    if gi.game_mode is not None:
+                        info_str +=  f"({gi.game_mode.value})"
                     info_str += ' '.join([
                         "", "-",
                         f"{self.st.lan().mjai2str(gi.bakaze)}",

@@ -129,22 +129,33 @@ class LiqiProto:
             # """
             if msg_type == MsgType.REQ:
                 assert(msg_id < 1 << 16)
-                assert(len(msg_block) == 2)
+                # assert(len(msg_block) == 2)
                 # assert(msg_id not in self.res_type)
-                method_name = msg_block[0]['data'].decode()
+                # Look up the method (field 1) and payload (field 2) blocks by id.
+                method_block = next((b for b in msg_block if b['id'] == 1), None)
+                payload_block = next((b for b in msg_block if b['id'] == 2), None)
+                if method_block is None or payload_block is None:
+                    raise ValueError(f"REQ msg missing method/payload block: {buf}")
+                method_name = method_block['data'].decode()
                 _, lq, service, rpc = method_name.split('.')
                 proto_domain = self.jsonProto['nested'][lq]['nested'][service]['methods'][rpc]
                 liqi_pb2_req = getattr(pb, proto_domain['requestType'])
-                proto_obj = liqi_pb2_req.FromString(msg_block[1]['data'])
+                proto_obj = liqi_pb2_req.FromString(payload_block['data'])
                 dict_obj = MessageToDict(proto_obj, always_print_fields_with_no_presence=True)
                 self.res_type[msg_id] = (method_name, getattr(
                     pb, proto_domain['responseType']))
                 self.msg_id = msg_id
             elif msg_type == MsgType.RES:
-                assert(len(msg_block[0]['data']) == 0)
                 assert(msg_id in self.res_type)
                 method_name, liqi_pb2_res = self.res_type.pop(msg_id)
-                proto_obj = liqi_pb2_res.FromString(msg_block[1]['data'])
+                # The RES envelope may be either:
+                #   1) field 1 (empty method name) + field 2 (payload)  -- old protocol
+                #   2) field 2 (payload) only                           -- newer protocol
+                # So look up the payload block by field id instead of by position.
+                payload_block = next((b for b in msg_block if b['id'] == 2), None)
+                if payload_block is None:
+                    raise ValueError(f"RES msg has no payload block: {buf}")
+                proto_obj = liqi_pb2_res.FromString(payload_block['data'])
                 dict_obj = MessageToDict(proto_obj, always_print_fields_with_no_presence=True)
             else:
                 LOGGER.error('unknow msg (type=%s): %s', msg_type, buf)
